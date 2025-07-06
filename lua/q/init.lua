@@ -54,8 +54,6 @@ local function initialize()
 	-- Validate configuration
 	local ok, err = pcall(vim.validate, {
 		enabled = { M.config.enabled, "boolean" },
-		auto_suggestions = { M.config.auto_suggestions, "boolean" },
-		suggestion_delay = { M.config.suggestion_delay, "number" },
 		debug_cli = { M.config.debug_cli, "boolean" },
 		streaming = { M.config.streaming, "boolean" },
 	})
