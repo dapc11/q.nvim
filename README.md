@@ -83,8 +83,8 @@ Configure your Amazon Q login defaults using environment variables. Add these to
 ```bash
 # Amazon Q CLI Configuration
 export Q_NVIM_LICENSE="pro"
-export Q_NVIM_IDENTITY_PROVIDER="https://d-9367077c28.awsapps.com/start"
-export Q_NVIM_REGION="eu-west-1"
+export Q_NVIM_IDENTITY_PROVIDER="awsprovider"
+export Q_NVIM_REGION="region"
 ```
 
 These environment variables will be used as defaults for the `:Q login` command. You can still override them by passing explicit arguments.
