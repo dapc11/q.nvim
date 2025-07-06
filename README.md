@@ -7,7 +7,6 @@ A Neovim plugin that integrates Amazon Q CLI for seamless AI-powered coding assi
 - **Inline Chat**: Start conversations with Amazon Q directly in your code editor
 - **Chat Window**: Dedicated chat interface for extended conversations
 - **Streaming Responses**: Real-time line-by-line streaming of Amazon Q responses for faster feedback
-- **Inline Suggestions**: Real-time code suggestions as you type
 - **Language Support**: Optimized for Go, Python, and many other languages
 - **Filetype-specific Commands**: Specialized commands for different programming languages
 
@@ -26,8 +25,6 @@ A Neovim plugin that integrates Amazon Q CLI for seamless AI-powered coding assi
     config = function()
         require("q").setup({
             enabled = true,
-            auto_suggestions = true,
-            suggestion_delay = 500,
             debug_cli = false,
             chat_window = {
                 width = 80,
@@ -37,8 +34,6 @@ A Neovim plugin that integrates Amazon Q CLI for seamless AI-powered coding assi
             keymaps = {
                 inline_chat = "<leader>qi",
                 open_chat = "<leader>qc",
-                accept_suggestion = "<Tab>",
-                dismiss_suggestion = "<C-]>",
             },
         })
     end,
@@ -65,8 +60,6 @@ The plugin works out of the box with sensible defaults. You can customize it usi
 ```lua
 require("q").setup({
     enabled = true,                    -- Enable/disable the plugin
-    auto_suggestions = true,           -- Enable automatic inline suggestions
-    suggestion_delay = 500,            -- Delay in ms before showing suggestions
     debug_cli = false,                 -- Show debug info for CLI commands (for troubleshooting)
     streaming = true,                  -- Enable streaming responses (default: true)
     chat_window = {
@@ -77,8 +70,6 @@ require("q").setup({
     keymaps = {
         inline_chat = "<leader>qi",    -- Start inline chat
         open_chat = "<leader>qc",      -- Open chat window
-        accept_suggestion = "<Tab>",   -- Accept suggestion
-        dismiss_suggestion = "<Esc>",  -- Dismiss suggestion
     },
 }
 ```
@@ -139,9 +130,6 @@ Before using Amazon Q features, you need to authenticate:
 - `:Q chat [message]` - Open chat window or send a message
 - `:Q reopen` - Reopen chat window with previous conversation history
 - `:Q inline [prompt]` - Start inline chat
-- `:Q suggest [on|off]` - Toggle suggestions
-- `:Q accept` - Accept current suggestion
-- `:Q dismiss` - Dismiss current suggestion
 
 ### Special Syntax
 
@@ -165,10 +153,6 @@ The plugin provides `<Plug>` mappings for flexibility:
 vim.keymap.set("n", "<leader>qc", "<Plug>(QOpenChat)")
 vim.keymap.set("n", "<leader>qi", "<Plug>(QInlineChat)")
 vim.keymap.set("v", "<leader>qi", "<Plug>(QInlineChat)")
-vim.keymap.set("n", "<Tab>", "<Plug>(QAcceptSuggestion)")
-vim.keymap.set("i", "<Tab>", "<Plug>(QAcceptSuggestion)")
-vim.keymap.set("n", "<Esc>", "<Plug>(QDismissSuggestion)")
-vim.keymap.set("i", "<Esc>", "<Plug>(QDismissSuggestion)")
 ```
 
 ### Language-specific Features
@@ -222,12 +206,6 @@ vim.keymap.set("i", "<Esc>", "<Plug>(QDismissSuggestion)")
 3. Press Enter to send
 4. Continue the conversation
 
-### Inline Suggestions
-
-1. Start typing code
-2. Wait for suggestions to appear as virtual text
-3. Press Tab to accept or Esc to dismiss
-
 ## Health Check
 
 Run `:checkhealth q` to verify your setup:
@@ -250,18 +228,6 @@ Make sure the Amazon Q CLI is installed and available in your PATH:
 # Verify installation
 q --version
 ```
-
-### Suggestions not working
-
-1. Check if suggestions are enabled: `:Q suggest`
-2. Verify filetype support: `:checkhealth q`
-3. Check your configuration: `vim.g.q_nvim`
-
-### Performance issues
-
-- Increase `suggestion_delay` in configuration
-- Disable auto suggestions: `auto_suggestions = false`
-- Use `:Q suggest off` to temporarily disable
 
 ## Contributing
 

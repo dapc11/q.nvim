@@ -1,7 +1,5 @@
 ---@class q.Config
 ---@field enabled? boolean Enable the plugin (default: true)
----@field auto_suggestions? boolean Enable automatic inline suggestions (default: true)
----@field suggestion_delay? number Delay in ms before showing suggestions (default: 500)
 ---@field debug_cli? boolean Show debug information for CLI commands (default: false)
 ---@field streaming? boolean Enable streaming responses (default: true)
 ---@field chat_window? q.ChatWindowConfig Chat window configuration
@@ -15,8 +13,6 @@
 ---@class q.KeymapConfig
 ---@field inline_chat? string Keymap for inline chat (default: "<leader>qi")
 ---@field open_chat? string Keymap for opening chat (default: "<leader>qc")
----@field accept_suggestion? string Keymap for accepting suggestion (default: "<Tab>")
----@field dismiss_suggestion? string Keymap for dismissing suggestion (default: "<Esc>")
 
 local M = {}
 
@@ -25,9 +21,6 @@ local state = {
 	initialized = false,
 	chat_buf = nil,
 	chat_win = nil,
-	suggestion_ns = vim.api.nvim_create_namespace("q_suggestions"),
-	suggestion_timer = nil,
-	current_suggestion = nil,
 }
 
 -- Expose state for health checks
@@ -36,8 +29,6 @@ M.state = state
 ---@type q.Config
 local default_config = {
 	enabled = true,
-	auto_suggestions = true,
-	suggestion_delay = 500,
 	debug_cli = false,
 	streaming = true,
 	chat_window = {
@@ -48,8 +39,6 @@ local default_config = {
 	keymaps = {
 		inline_chat = "<leader>qi",
 		open_chat = "<leader>qc",
-		accept_suggestion = "<Tab>",
-		dismiss_suggestion = "<C-]>", -- Changed from <Esc> to <C-]>
 	},
 }
 
@@ -91,11 +80,6 @@ local function initialize()
 
 	-- Setup keymaps
 	require("q.keymaps").setup(M.config.keymaps)
-
-	-- Setup autocommands for suggestions
-	if M.config.auto_suggestions then
-		require("q.suggestions").setup(M.config)
-	end
 
 	state.initialized = true
 end

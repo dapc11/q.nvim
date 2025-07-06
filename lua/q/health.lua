@@ -47,8 +47,6 @@ function M.check()
 		-- Validate configuration
 		local ok, err = pcall(vim.validate, {
 			enabled = { config.enabled, "boolean" },
-			auto_suggestions = { config.auto_suggestions, "boolean" },
-			suggestion_delay = { config.suggestion_delay, "number" },
 		})
 
 		if ok then
@@ -62,13 +60,6 @@ function M.check()
 			health.ok("Plugin is enabled")
 		else
 			health.warn("Plugin is disabled")
-		end
-
-		-- Check auto suggestions
-		if config.auto_suggestions then
-			health.ok("Auto suggestions are enabled")
-		else
-			health.info("Auto suggestions are disabled")
 		end
 	else
 		health.error("Could not load plugin configuration")
@@ -125,35 +116,13 @@ function M.check()
 		health.warn("Plugin is not initialized")
 	end
 
-	-- Check suggestions system
-	local suggestions = require("q.suggestions")
-	if suggestions.is_enabled() then
-		health.ok("Suggestions system is enabled")
-	else
-		health.info("Suggestions system is disabled")
-	end
-
-	-- Performance checks
-	health.start("Performance")
-
-	-- Check suggestion delay
-	if config and config.suggestion_delay then
-		if config.suggestion_delay < 100 then
-			health.warn("Suggestion delay is very low (" .. config.suggestion_delay .. "ms) - may impact performance")
-		elseif config.suggestion_delay > 2000 then
-			health.warn("Suggestion delay is very high (" .. config.suggestion_delay .. "ms) - may feel slow")
-		else
-			health.ok("Suggestion delay is reasonable (" .. config.suggestion_delay .. "ms)")
-		end
-	end
-
 	-- Security checks
 	health.start("Security")
 
 	-- Check if we're in a trusted directory (basic check)
 	local cwd = vim.fn.getcwd()
 	if cwd:match("^/tmp") or cwd:match("^/var/tmp") then
-		health.warn("Working in temporary directory - be cautious about code suggestions")
+		health.warn("Working in temporary directory - be cautious about code")
 	else
 		health.ok("Working directory appears safe")
 	end
@@ -198,7 +167,6 @@ function M.check()
 
 	-- Check for complementary plugins
 	local complementary_plugins = {
-		{ name = "nvim-cmp", module = "cmp" },
 		{ name = "telescope.nvim", module = "telescope" },
 		{ name = "lualine.nvim", module = "lualine" },
 	}

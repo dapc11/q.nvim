@@ -2,7 +2,6 @@ local M = {}
 
 local chat = require("q.chat")
 local inline_chat = require("q.inline_chat")
-local suggestions = require("q.suggestions")
 
 ---@class QSubcommand
 ---@field impl fun(args: string[], opts: table)
@@ -65,37 +64,6 @@ local subcommand_tbl = {
 					return prompt:find(subcmd_arg_lead, 1, true) ~= nil
 				end)
 				:totable()
-		end,
-	},
-	suggest = {
-		impl = function(args, opts)
-			if #args == 0 then
-				suggestions.toggle()
-			elseif args[1] == "on" then
-				suggestions.enable()
-			elseif args[1] == "off" then
-				suggestions.disable()
-			else
-				vim.notify("Usage: :Q suggest [on|off]", vim.log.levels.INFO)
-			end
-		end,
-		complete = function(subcmd_arg_lead)
-			local options = { "on", "off" }
-			return vim.iter(options)
-				:filter(function(opt)
-					return opt:find(subcmd_arg_lead, 1, true) ~= nil
-				end)
-				:totable()
-		end,
-	},
-	accept = {
-		impl = function(args, opts)
-			suggestions.accept()
-		end,
-	},
-	dismiss = {
-		impl = function(args, opts)
-			suggestions.dismiss()
 		end,
 	},
 	reopen = {

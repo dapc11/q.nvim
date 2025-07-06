@@ -32,56 +32,6 @@ function M.setup(keymap_config)
 		end
 	end, { noremap = true, desc = "Start inline chat with selected code" })
 
-	vim.keymap.set("n", "<Plug>(QAcceptSuggestion)", function()
-		-- Safely require the module and call the function
-		local ok, suggestions_module = pcall(require, "q.suggestions")
-		if ok and suggestions_module then
-			suggestions_module.accept()
-		else
-			vim.notify("Failed to load suggestions module: " .. (suggestions_module or "unknown error"), vim.log.levels.ERROR)
-		end
-	end, { noremap = true, desc = "Accept Amazon Q suggestion" })
-
-	vim.keymap.set("i", "<Plug>(QAcceptSuggestion)", function()
-		-- Safely require the module and call the function
-		local ok, suggestions_module = pcall(require, "q.suggestions")
-		if ok and suggestions_module then
-			suggestions_module.accept()
-		else
-			vim.notify("Failed to load suggestions module: " .. (suggestions_module or "unknown error"), vim.log.levels.ERROR)
-		end
-	end, { noremap = true, desc = "Accept Amazon Q suggestion" })
-
-	vim.keymap.set("n", "<Plug>(QDismissSuggestion)", function()
-		-- Safely require the module and call the function
-		local ok, suggestions_module = pcall(require, "q.suggestions")
-		if ok and suggestions_module then
-			suggestions_module.dismiss()
-		else
-			vim.notify("Failed to load suggestions module: " .. (suggestions_module or "unknown error"), vim.log.levels.ERROR)
-		end
-	end, { noremap = true, desc = "Dismiss Amazon Q suggestion" })
-
-	vim.keymap.set("i", "<Plug>(QDismissSuggestion)", function()
-		-- Safely require the module and call the function
-		local ok, suggestions_module = pcall(require, "q.suggestions")
-		if ok and suggestions_module then
-			suggestions_module.dismiss()
-		else
-			vim.notify("Failed to load suggestions module: " .. (suggestions_module or "unknown error"), vim.log.levels.ERROR)
-		end
-	end, { noremap = true, desc = "Dismiss Amazon Q suggestion" })
-
-	vim.keymap.set("n", "<Plug>(QToggleSuggestions)", function()
-		-- Safely require the module and call the function
-		local ok, suggestions_module = pcall(require, "q.suggestions")
-		if ok and suggestions_module then
-			suggestions_module.toggle()
-		else
-			vim.notify("Failed to load suggestions module: " .. (suggestions_module or "unknown error"), vim.log.levels.ERROR)
-		end
-	end, { noremap = true, desc = "Toggle Amazon Q suggestions" })
-
 	-- Set up default keymaps if provided
 	if keymap_config.open_chat then
 		vim.keymap.set("n", keymap_config.open_chat, "<Plug>(QOpenChat)")
@@ -90,16 +40,6 @@ function M.setup(keymap_config)
 	if keymap_config.inline_chat then
 		vim.keymap.set("n", keymap_config.inline_chat, "<Plug>(QInlineChat)")
 		vim.keymap.set("v", keymap_config.inline_chat, "<Plug>(QInlineChat)")
-	end
-
-	if keymap_config.accept_suggestion then
-		vim.keymap.set("n", keymap_config.accept_suggestion, "<Plug>(QAcceptSuggestion)")
-		vim.keymap.set("i", keymap_config.accept_suggestion, "<Plug>(QAcceptSuggestion)")
-	end
-
-	if keymap_config.dismiss_suggestion then
-		vim.keymap.set("n", keymap_config.dismiss_suggestion, "<Plug>(QDismissSuggestion)")
-		vim.keymap.set("i", keymap_config.dismiss_suggestion, "<Plug>(QDismissSuggestion)")
 	end
 end
 
