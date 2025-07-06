@@ -71,6 +71,12 @@ require("q").setup({
         inline_chat = "<leader>qi",    -- Start inline chat
         open_chat = "<leader>qc",      -- Open chat window
     },
+    ghost_text = {
+        enabled = true,                -- Enable ghost text prompts (default: true)
+        chat_prompt = "Ask Amazon Q: ", -- Ghost text for chat window
+        inline_prompt = "What would you like me to do with this code?", -- Ghost text for inline chat
+        highlight = "Comment",         -- Highlight group for ghost text (default: "Comment")
+    },
 }
 ```
 

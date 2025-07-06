@@ -28,6 +28,41 @@ local hide_loading_indicator
 -- Setup keymaps for inline chat
 setup_inline_keymaps = function()
 	local opts = { buffer = inline_state.bufnr, noremap = true, silent = true }
+	local ns_id = vim.api.nvim_create_namespace("q_inline_ghost_text")
+
+	-- Get ghost text configuration
+	local ok, q_module = pcall(require, "q")
+	local ghost_config = ok and q_module.config and q_module.config.ghost_text
+		or {
+			enabled = true,
+			inline_prompt = "What would you like me to do with this code?",
+			highlight = "Comment",
+		}
+
+	-- Function to update ghost text visibility
+	local function update_ghost_text()
+		if not ghost_config.enabled then
+			return
+		end
+
+		local lines = vim.api.nvim_buf_get_lines(inline_state.bufnr, 0, -1, false)
+		local content = table.concat(lines, "\n"):gsub("^%s*", ""):gsub("%s*$", "")
+
+		-- Clear existing ghost text
+		vim.api.nvim_buf_clear_namespace(inline_state.bufnr, ns_id, 0, -1)
+
+		-- Show ghost text only if buffer is empty or contains only whitespace
+		if content == "" then
+			-- Only show ghost text on the first line if it's empty
+			local first_line = lines[1] or ""
+			if first_line:gsub("^%s*", ""):gsub("%s*$", "") == "" then
+				vim.api.nvim_buf_set_extmark(inline_state.bufnr, ns_id, 0, 0, {
+					virt_text = { { ghost_config.inline_prompt, ghost_config.highlight } },
+					virt_text_pos = "inline",
+				})
+			end
+		end
+	end
 
 	-- Send on Enter
 	vim.keymap.set("i", "<CR>", function()
@@ -47,6 +82,35 @@ setup_inline_keymaps = function()
 	vim.keymap.set("i", "<C-e>", function()
 		expand_input_window()
 	end, opts)
+
+	-- Set up autocommands to handle ghost text visibility
+	if ghost_config.enabled then
+		local augroup = vim.api.nvim_create_augroup("QInlineGhostText", { clear = true })
+
+		-- Update ghost text on text changes
+		vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+			buffer = inline_state.bufnr,
+			group = augroup,
+			callback = update_ghost_text,
+			desc = "Update ghost text visibility in Q inline chat input",
+		})
+
+		-- Update ghost text when entering insert mode
+		vim.api.nvim_create_autocmd("InsertEnter", {
+			buffer = inline_state.bufnr,
+			group = augroup,
+			callback = update_ghost_text,
+			desc = "Update ghost text when entering insert mode",
+		})
+
+		-- Update ghost text when leaving insert mode
+		vim.api.nvim_create_autocmd("InsertLeave", {
+			buffer = inline_state.bufnr,
+			group = augroup,
+			callback = update_ghost_text,
+			desc = "Update ghost text when leaving insert mode",
+		})
+	end
 end
 
 -- Create inline chat input window
@@ -82,8 +146,30 @@ create_input_window = function()
 	-- Set buffer options
 	vim.bo[bufnr].filetype = "markdown"
 
-	-- Add prompt
-	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "What would you like me to do with this code?" })
+	-- Create empty line for input
+	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "" })
+
+	-- Get ghost text configuration
+	local ok, q_module = pcall(require, "q")
+	local ghost_config = ok and q_module.config and q_module.config.ghost_text
+		or {
+			enabled = true,
+			inline_prompt = "What would you like me to do with this code?",
+			highlight = "Comment",
+		}
+
+	-- Create namespace for virtual text
+	local ns_id = vim.api.nvim_create_namespace("q_inline_ghost_text")
+
+	-- Add ghost text prompt using virtual text (if enabled)
+	if ghost_config.enabled then
+		vim.api.nvim_buf_set_extmark(bufnr, ns_id, 0, 0, {
+			virt_text = { { ghost_config.inline_prompt, ghost_config.highlight } },
+			virt_text_pos = "inline",
+		})
+	end
+
+	-- Position cursor at the beginning of the line
 	vim.api.nvim_win_set_cursor(winid, { 1, 0 })
 
 	-- Enter insert mode
@@ -92,8 +178,6 @@ create_input_window = function()
 	-- Set up keymaps
 	setup_inline_keymaps()
 end
-
-
 
 -- Show response in a floating window
 ---@param response string Amazon Q response
@@ -118,7 +202,7 @@ show_response = function(response)
 	vim.bo[bufnr].modifiable = true
 	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 	vim.bo[bufnr].filetype = "markdown"
-	
+
 	-- Set markdown-specific options for better display
 	vim.api.nvim_set_option_value("conceallevel", 2, { win = winid })
 	vim.api.nvim_set_option_value("wrap", true, { win = winid })
@@ -204,7 +288,7 @@ show_loading_indicator = function()
 	end
 
 	local lines = { "⏳ Amazon Q is thinking..." }
-	
+
 	-- Get a valid line number for the extmark
 	local start_line
 	if inline_state.start_line and inline_state.start_line > 0 then
@@ -215,11 +299,11 @@ show_loading_indicator = function()
 		local cursor_pos = vim.api.nvim_win_get_cursor(inline_state.original_winid)
 		start_line = cursor_pos[1]
 	end
-	
+
 	-- Ensure the line is within valid range
 	local line_count = vim.api.nvim_buf_line_count(inline_state.original_bufnr)
 	start_line = math.min(start_line, line_count)
-	
+
 	-- Set the extmark at the valid line
 	vim.api.nvim_buf_set_extmark(inline_state.original_bufnr, inline_state.ns_id, start_line - 1, 0, {
 		virt_text = { { lines[1], "Comment" } },
@@ -290,7 +374,7 @@ process_inline_request = function()
 	local ok, q_module = pcall(require, "q")
 	local config = ok and q_module.config or nil
 	local debug_enabled = config and config.debug_cli or false
-	
+
 	if debug_enabled then
 		vim.notify("Selected text: " .. (inline_state.selected_text or "nil"), vim.log.levels.DEBUG)
 		vim.notify("Start line: " .. (inline_state.start_line or "nil"), vim.log.levels.DEBUG)
@@ -304,17 +388,13 @@ process_inline_request = function()
 			.. "\n"
 			.. inline_state.selected_text
 			.. "\n```"
-			
+
 		if debug_enabled then
 			vim.notify("Using selected text in prompt", vim.log.levels.DEBUG)
 		end
 	elseif inline_state.start_line and inline_state.end_line then
-		local code_lines = vim.api.nvim_buf_get_lines(
-			inline_state.original_bufnr,
-			inline_state.start_line - 1,
-			inline_state.end_line,
-			false
-		)
+		local code_lines =
+			vim.api.nvim_buf_get_lines(inline_state.original_bufnr, inline_state.start_line - 1, inline_state.end_line, false)
 		local code = table.concat(code_lines, "\n")
 		full_prompt = prompt .. "\n\nCode:\n```" .. (context.filetype or "") .. "\n" .. code .. "\n```"
 	end
@@ -336,54 +416,54 @@ process_inline_request = function()
 			local ok, q_module = pcall(require, "q")
 			local config = ok and q_module.config or nil
 			local streaming_enabled = config and config.streaming ~= false -- Default to true
-			
+
 			if streaming_enabled then
 				-- Create floating window for response
 				local width = math.min(math.max(60, #output / 3), vim.o.columns - 10)
 				local height = math.min(10, vim.o.lines - 10) -- Start with smaller height
-				
+
 				local bufnr, winid = utils.create_float_window({
 					width = width,
 					height = height,
 					title = "Amazon Q Response",
 					border = "rounded",
 				})
-				
+
 				-- Set initial content
 				vim.bo[bufnr].modifiable = true
 				vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
 				vim.bo[bufnr].filetype = "markdown"
-				
+
 				-- Set markdown-specific options for better display
 				vim.api.nvim_set_option_value("conceallevel", 2, { win = winid })
 				vim.api.nvim_set_option_value("wrap", true, { win = winid })
 				vim.api.nvim_set_option_value("linebreak", true, { win = winid })
-				
+
 				-- Set up keymaps for response window
 				local opts = { buffer = bufnr, noremap = true, silent = true }
-				
+
 				vim.keymap.set("n", "q", function()
 					vim.api.nvim_win_close(winid, true)
 					M.cancel()
 				end, opts)
-				
+
 				vim.keymap.set("n", "<Esc>", function()
 					vim.api.nvim_win_close(winid, true)
 					M.cancel()
 				end, opts)
-				
+
 				vim.keymap.set("n", "a", function()
 					apply_suggestion(output)
 					vim.api.nvim_win_close(winid, true)
 					M.cancel()
 				end, opts)
-				
+
 				-- Split output into lines for streaming effect
 				local lines = {}
 				for line in output:gmatch("[^\r\n]+") do
 					table.insert(lines, line)
 				end
-				
+
 				local function update_content(index)
 					if index > #lines then
 						-- Finished streaming, add help text
@@ -395,15 +475,15 @@ process_inline_request = function()
 						vim.bo[bufnr].modifiable = false
 						return
 					end
-					
+
 					-- Update buffer content
 					vim.bo[bufnr].modifiable = true
-					
+
 					-- Get current lines
 					local current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 					table.insert(current_lines, lines[index])
 					vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, current_lines)
-					
+
 					-- Adjust window height if needed
 					if index % 3 == 0 and index < #lines then
 						local config = vim.api.nvim_win_get_config(winid)
@@ -413,21 +493,21 @@ process_inline_request = function()
 							vim.api.nvim_win_set_config(winid, config)
 						end
 					end
-					
+
 					vim.bo[bufnr].modifiable = false
-					
+
 					-- Auto-scroll to bottom
 					if vim.api.nvim_win_is_valid(winid) then
 						local line_count = vim.api.nvim_buf_line_count(bufnr)
 						vim.api.nvim_win_set_cursor(winid, { line_count, 0 })
 					end
-					
+
 					-- Schedule next line with delay
 					vim.defer_fn(function()
 						update_content(index + 1)
 					end, 100)
 				end
-				
+
 				-- Start streaming
 				update_content(1)
 			else
@@ -446,7 +526,7 @@ end
 ---@param initial_prompt? string Initial prompt to use
 function M.start(opts, initial_prompt)
 	opts = opts or {}
-	
+
 	if inline_state.active then
 		vim.notify("Inline chat is already active", vim.log.levels.WARN)
 		return
@@ -461,14 +541,14 @@ function M.start(opts, initial_prompt)
 	if mode == "v" or mode == "V" or mode == "\22" then
 		-- Get selected text using the improved function
 		local selected_text = utils.get_visual_selection()
-		
+
 		if selected_text then
 			inline_state.selected_text = selected_text
-			
+
 			-- Get start and end lines
 			local start_pos = vim.api.nvim_buf_get_mark(0, "<")
 			local end_pos = vim.api.nvim_buf_get_mark(0, ">")
-			
+
 			-- Ensure start_line and end_line are valid
 			local line_count = vim.api.nvim_buf_line_count(0)
 			inline_state.start_line = math.min(start_pos[1], line_count)

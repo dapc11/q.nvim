@@ -4,6 +4,7 @@
 ---@field streaming? boolean Enable streaming responses (default: true)
 ---@field chat_window? q.ChatWindowConfig Chat window configuration
 ---@field keymaps? q.KeymapConfig Keymap configuration
+---@field ghost_text? q.GhostTextConfig Ghost text configuration
 
 ---@class q.ChatWindowConfig
 ---@field width? number Chat window width (default: 80)
@@ -13,6 +14,12 @@
 ---@class q.KeymapConfig
 ---@field inline_chat? string Keymap for inline chat (default: "<leader>qi")
 ---@field open_chat? string Keymap for opening chat (default: "<leader>qc")
+
+---@class q.GhostTextConfig
+---@field enabled? boolean Enable ghost text (default: true)
+---@field chat_prompt? string Ghost text for chat window (default: "Ask Amazon Q: ")
+---@field inline_prompt? string Ghost text for inline chat (default: "What would you like me to do with this code?")
+---@field highlight? string Highlight group for ghost text (default: "Comment")
 
 local M = {}
 
@@ -39,6 +46,12 @@ local default_config = {
 	keymaps = {
 		inline_chat = "<leader>qi",
 		open_chat = "<leader>qc",
+	},
+	ghost_text = {
+		enabled = true,
+		chat_prompt = "Ask Amazon Q: ",
+		inline_prompt = "What would you like me to do with this code?",
+		highlight = "Comment",
 	},
 }
 

@@ -10,9 +10,9 @@ local chat_state = {
 	input_winid = nil,
 	history = {},
 	is_open = false,
-	original_bufnr = nil,  -- Track the original buffer for % expansion
-	original_winid = nil,  -- Track the original window
-	closing = false,       -- Flag to avoid triggering our own autocommands
+	original_bufnr = nil, -- Track the original buffer for % expansion
+	original_winid = nil, -- Track the original window
+	closing = false, -- Flag to avoid triggering our own autocommands
 }
 
 -- Forward declarations
@@ -85,8 +85,6 @@ display_message = function(message)
 		vim.api.nvim_win_set_cursor(chat_state.winid, { line_count, 0 })
 	end
 end
-
-
 
 -- Refresh the entire chat display
 refresh_chat_display = function()
@@ -168,7 +166,7 @@ send_message_authenticated = function(message)
 
 			-- Check if streaming is enabled
 			local streaming_enabled = config and config.streaming ~= false -- Default to true
-			
+
 			if streaming_enabled then
 				-- Add message with empty content first
 				local timestamp = os.date("%H:%M:%S")
@@ -179,30 +177,30 @@ send_message_authenticated = function(message)
 				}
 				table.insert(chat_state.history, message)
 				display_message(message)
-				
+
 				-- Split output into lines for streaming effect
 				local lines = {}
 				for line in output:gmatch("[^\r\n]+") do
 					table.insert(lines, line)
 				end
-				
+
 				local function update_content(index)
 					if index > #lines then
 						return
 					end
-					
+
 					-- Update message content
 					message.content = message.content .. (index > 1 and "\n" or "") .. lines[index]
-					
+
 					-- Update display
 					refresh_chat_display()
-					
+
 					-- Schedule next line with delay
 					vim.defer_fn(function()
 						update_content(index + 1)
 					end, 100)
 				end
-				
+
 				-- Start streaming
 				update_content(1)
 			else
@@ -224,7 +222,7 @@ end
 setup_window_close_detection = function()
 	-- Create an autocommand group for our window close detection
 	local augroup = vim.api.nvim_create_augroup("QChatWindowClose", { clear = true })
-	
+
 	-- Detect when chat buffer is closed
 	if chat_state.bufnr and vim.api.nvim_buf_is_valid(chat_state.bufnr) then
 		vim.api.nvim_create_autocmd("BufWinLeave", {
@@ -241,7 +239,7 @@ setup_window_close_detection = function()
 			desc = "Detect when Amazon Q chat window is closed with :q",
 		})
 	end
-	
+
 	-- Detect when input buffer is closed
 	if chat_state.input_bufnr and vim.api.nvim_buf_is_valid(chat_state.input_bufnr) then
 		vim.api.nvim_create_autocmd("BufWinLeave", {
@@ -263,11 +261,12 @@ end
 -- Create chat window
 create_chat_window = function()
 	local ok, q_module = pcall(require, "q")
-	local config = ok and q_module.config and q_module.config.chat_window or {
-		width = 80,
-		height = 20,
-		position = "right"
-	}
+	local config = ok and q_module.config and q_module.config.chat_window
+		or {
+			width = 80,
+			height = 20,
+			position = "right",
+		}
 
 	if config.position == "float" then
 		local bufnr, winid = utils.create_float_window({
@@ -298,7 +297,7 @@ create_chat_window = function()
 	if chat_state.winid and vim.api.nvim_win_is_valid(chat_state.winid) then
 		vim.api.nvim_set_option_value("list", false, { win = chat_state.winid })
 		vim.api.nvim_set_option_value("listchars", "", { win = chat_state.winid })
-		
+
 		-- Set markdown-specific options for better display
 		vim.api.nvim_set_option_value("conceallevel", 2, { win = chat_state.winid })
 		vim.api.nvim_set_option_value("wrap", true, { win = chat_state.winid })
@@ -317,13 +316,35 @@ create_chat_window = function()
 	vim.bo[chat_state.input_bufnr].filetype = "markdown"
 	vim.bo[chat_state.input_bufnr].bufhidden = "wipe"
 
-	-- Add prompt
-	vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "Ask Amazon Q: " })
-	vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 15 })
+	-- Create empty line for input
+	vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "" })
+
+	-- Get ghost text configuration
+	local ok, q_module = pcall(require, "q")
+	local ghost_config = ok and q_module.config and q_module.config.ghost_text
+		or {
+			enabled = true,
+			chat_prompt = "Ask Amazon Q: ",
+			highlight = "Comment",
+		}
+
+	-- Create namespace for virtual text
+	local ns_id = vim.api.nvim_create_namespace("q_chat_ghost_text")
+
+	-- Add ghost text prompt using virtual text (if enabled)
+	if ghost_config.enabled then
+		vim.api.nvim_buf_set_extmark(chat_state.input_bufnr, ns_id, 0, 0, {
+			virt_text = { { ghost_config.chat_prompt, ghost_config.highlight } },
+			virt_text_pos = "inline",
+		})
+	end
+
+	-- Position cursor at the beginning of the line
+	vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 0 })
 
 	-- Set up keymaps for chat window
 	setup_chat_keymaps()
-	
+
 	-- Set up detection for when windows are closed with :q
 	setup_window_close_detection()
 
@@ -347,9 +368,9 @@ send_current_message = function()
 	local lines = vim.api.nvim_buf_get_lines(chat_state.input_bufnr, 0, -1, false)
 	local input = table.concat(lines, "\n")
 
-	-- Extract message after prompt
-	local message = input:match("Ask Amazon Q: (.*)")
-	if not message or message:match("^%s*$") then
+	-- Since we're using ghost text, the input is the actual message content
+	local message = input:gsub("^%s*", ""):gsub("%s*$", "") -- Trim whitespace
+	if not message or message == "" then
 		return
 	end
 
@@ -358,9 +379,29 @@ send_current_message = function()
 
 	M.send_message(message)
 
-	-- Clear input
-	vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "Ask Amazon Q: " })
-	vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 15 })
+	-- Clear input and reset ghost text
+	vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "" })
+
+	-- Get ghost text configuration
+	local ok, q_module = pcall(require, "q")
+	local ghost_config = ok and q_module.config and q_module.config.ghost_text
+		or {
+			enabled = true,
+			chat_prompt = "Ask Amazon Q: ",
+			highlight = "Comment",
+		}
+
+	-- Recreate ghost text (if enabled)
+	if ghost_config.enabled then
+		local ns_id = vim.api.nvim_create_namespace("q_chat_ghost_text")
+		vim.api.nvim_buf_clear_namespace(chat_state.input_bufnr, ns_id, 0, -1)
+		vim.api.nvim_buf_set_extmark(chat_state.input_bufnr, ns_id, 0, 0, {
+			virt_text = { { ghost_config.chat_prompt, ghost_config.highlight } },
+			virt_text_pos = "inline",
+		})
+	end
+
+	vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 0 })
 end
 
 -- Open chat window
@@ -398,7 +439,7 @@ end
 function M.close()
 	-- Set a flag to avoid triggering our own autocommands
 	chat_state.closing = true
-	
+
 	if chat_state.winid and vim.api.nvim_win_is_valid(chat_state.winid) then
 		vim.api.nvim_win_close(chat_state.winid, true)
 	end
@@ -424,8 +465,8 @@ function M.close()
 	chat_state.input_bufnr = nil
 	chat_state.original_bufnr = nil
 	chat_state.original_winid = nil
-	chat_state.closing = false  -- Reset the closing flag
-	
+	chat_state.closing = false -- Reset the closing flag
+
 	-- Note: We intentionally don't reset chat_state.history to preserve the conversation
 end
 
@@ -474,6 +515,41 @@ end
 -- Setup keymaps for chat interaction
 setup_chat_keymaps = function()
 	local opts = { buffer = chat_state.input_bufnr, noremap = true, silent = true }
+	local ns_id = vim.api.nvim_create_namespace("q_chat_ghost_text")
+
+	-- Get ghost text configuration
+	local ok, q_module = pcall(require, "q")
+	local ghost_config = ok and q_module.config and q_module.config.ghost_text
+		or {
+			enabled = true,
+			chat_prompt = "Ask Amazon Q: ",
+			highlight = "Comment",
+		}
+
+	-- Function to update ghost text visibility
+	local function update_ghost_text()
+		if not ghost_config.enabled then
+			return
+		end
+
+		local lines = vim.api.nvim_buf_get_lines(chat_state.input_bufnr, 0, -1, false)
+		local content = table.concat(lines, "\n"):gsub("^%s*", ""):gsub("%s*$", "")
+
+		-- Clear existing ghost text
+		vim.api.nvim_buf_clear_namespace(chat_state.input_bufnr, ns_id, 0, -1)
+
+		-- Show ghost text only if buffer is empty or contains only whitespace
+		if content == "" then
+			-- Only show ghost text on the first line if it's empty
+			local first_line = lines[1] or ""
+			if first_line:gsub("^%s*", ""):gsub("%s*$", "") == "" then
+				vim.api.nvim_buf_set_extmark(chat_state.input_bufnr, ns_id, 0, 0, {
+					virt_text = { { ghost_config.chat_prompt, ghost_config.highlight } },
+					virt_text_pos = "inline",
+				})
+			end
+		end
+	end
 
 	-- Send message on Enter
 	vim.keymap.set("i", "<CR>", function()
@@ -496,9 +572,39 @@ setup_chat_keymaps = function()
 
 	-- Clear input
 	vim.keymap.set("n", "<C-c>", function()
-		vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "Ask Amazon Q: " })
-		vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 15 })
+		vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "" })
+		update_ghost_text()
+		vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 0 })
 	end, opts)
+
+	-- Set up autocommands to handle ghost text visibility
+	if ghost_config.enabled then
+		local augroup = vim.api.nvim_create_augroup("QChatGhostText", { clear = true })
+
+		-- Update ghost text on text changes
+		vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+			buffer = chat_state.input_bufnr,
+			group = augroup,
+			callback = update_ghost_text,
+			desc = "Update ghost text visibility in Q chat input",
+		})
+
+		-- Update ghost text when entering insert mode
+		vim.api.nvim_create_autocmd("InsertEnter", {
+			buffer = chat_state.input_bufnr,
+			group = augroup,
+			callback = update_ghost_text,
+			desc = "Update ghost text when entering insert mode",
+		})
+
+		-- Update ghost text when leaving insert mode
+		vim.api.nvim_create_autocmd("InsertLeave", {
+			buffer = chat_state.input_bufnr,
+			group = augroup,
+			callback = update_ghost_text,
+			desc = "Update ghost text when leaving insert mode",
+		})
+	end
 end
 
 return M

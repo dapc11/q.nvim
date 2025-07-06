@@ -89,12 +89,11 @@ function M.login(args)
 	vim.notify("Starting Amazon Q login process...", vim.log.levels.INFO)
 	vim.notify(
 		"Using: License="
-		.. final_license
-		.. (
-			final_license == "pro"
-			and (", Identity Provider=" .. final_identity_provider .. ", Region=" .. final_region)
-			or ""
-		),
+			.. final_license
+			.. (
+				final_license == "pro" and (", Identity Provider=" .. final_identity_provider .. ", Region=" .. final_region)
+				or ""
+			),
 		vim.log.levels.INFO
 	)
 

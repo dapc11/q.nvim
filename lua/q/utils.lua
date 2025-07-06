@@ -47,10 +47,12 @@ function M.execute_q_command(args, callback)
 		return nil
 	else
 		-- Sync execution
-		local result = vim.system(cmd, {
-			text = true,
-			timeout = 30000,
-		}):wait()
+		local result = vim
+			.system(cmd, {
+				text = true,
+				timeout = 30000,
+			})
+			:wait()
 
 		if result.code == 0 then
 			return M.clean_cli_output(result.stdout or "")
@@ -144,24 +146,24 @@ end
 -- Get selected text in visual mode
 ---@return string|nil selected_text
 function M.get_visual_selection()
-    -- Save the current register content
-    local reg_save = vim.fn.getreg('v')
-    local regtype_save = vim.fn.getregtype('v')
-    
-    -- Yank the visual selection into register 'v'
-    vim.cmd('normal! gv"vy')
-    
-    -- Get the text from register 'v'
-    local selected_text = vim.fn.getreg('v')
-    
-    -- Restore the register
-    vim.fn.setreg('v', reg_save, regtype_save)
-    
-    if selected_text == "" then
-        return nil
-    end
-    
-    return selected_text
+	-- Save the current register content
+	local reg_save = vim.fn.getreg("v")
+	local regtype_save = vim.fn.getregtype("v")
+
+	-- Yank the visual selection into register 'v'
+	vim.cmd('normal! gv"vy')
+
+	-- Get the text from register 'v'
+	local selected_text = vim.fn.getreg("v")
+
+	-- Restore the register
+	vim.fn.setreg("v", reg_save, regtype_save)
+
+	if selected_text == "" then
+		return nil
+	end
+
+	return selected_text
 end
 
 -- Create a floating window

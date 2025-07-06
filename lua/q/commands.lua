@@ -33,7 +33,8 @@ local subcommand_tbl = {
 				"add error handling",
 				"improve performance",
 			}
-			return vim.iter(prompts)
+			return vim
+				.iter(prompts)
 				:filter(function(prompt)
 					return prompt:find(subcmd_arg_lead, 1, true) ~= nil
 				end)
@@ -59,7 +60,8 @@ local subcommand_tbl = {
 				"fix",
 				"refactor",
 			}
-			return vim.iter(prompts)
+			return vim
+				.iter(prompts)
 				:filter(function(prompt)
 					return prompt:find(subcmd_arg_lead, 1, true) ~= nil
 				end)
@@ -98,8 +100,7 @@ local subcommand_tbl = {
 		complete = function(subcmd_arg_lead)
 			-- Get environment variables for completion suggestions
 			local env_license = os.getenv("Q_NVIM_LICENSE") or "pro"
-			local env_identity_provider = os.getenv("Q_NVIM_IDENTITY_PROVIDER")
-				or "https://d-9367077c28.awsapps.com/start"
+			local env_identity_provider = os.getenv("Q_NVIM_IDENTITY_PROVIDER") or "https://d-9367077c28.awsapps.com/start"
 			local env_region = os.getenv("Q_NVIM_REGION") or "eu-west-1"
 
 			local options = {
@@ -111,7 +112,8 @@ local subcommand_tbl = {
 				"--region=us-west-2",
 				"--use-device-flow",
 			}
-			return vim.iter(options)
+			return vim
+				.iter(options)
 				:filter(function(opt)
 					return opt:find(subcmd_arg_lead, 1, true) ~= nil
 				end)
@@ -142,8 +144,7 @@ local subcommand_tbl = {
 		impl = function(args, opts)
 			-- Show manual login command using environment variables
 			local env_license = os.getenv("Q_NVIM_LICENSE") or "pro"
-			local env_identity_provider = os.getenv("Q_NVIM_IDENTITY_PROVIDER")
-				or "https://d-9367077c28.awsapps.com/start"
+			local env_identity_provider = os.getenv("Q_NVIM_IDENTITY_PROVIDER") or "https://d-9367077c28.awsapps.com/start"
 			local env_region = os.getenv("Q_NVIM_REGION") or "eu-west-1"
 
 			local cmd = string.format(
@@ -187,19 +188,15 @@ function M.setup()
 		complete = function(arg_lead, cmdline, _)
 			-- Get the subcommand
 			local subcmd_key, subcmd_arg_lead = cmdline:match("^['<,'>]*Q[!]*%s(%S+)%s(.*)$")
-			if
-				subcmd_key
-				and subcmd_arg_lead
-				and subcommand_tbl[subcmd_key]
-				and subcommand_tbl[subcmd_key].complete
-			then
+			if subcmd_key and subcmd_arg_lead and subcommand_tbl[subcmd_key] and subcommand_tbl[subcmd_key].complete then
 				return subcommand_tbl[subcmd_key].complete(subcmd_arg_lead)
 			end
 
 			-- Check if cmdline is a subcommand
 			if cmdline:match("^['<,'>]*Q[!]*%s+%w*$") then
 				local subcommand_keys = vim.tbl_keys(subcommand_tbl)
-				return vim.iter(subcommand_keys)
+				return vim
+					.iter(subcommand_keys)
 					:filter(function(key)
 						return key:find(arg_lead, 1, true) ~= nil
 					end)

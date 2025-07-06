@@ -69,12 +69,7 @@ function M.check()
 	local nvim_version = vim.version()
 	if nvim_version.major > 0 or nvim_version.minor >= 9 then
 		health.ok(
-			string.format(
-				"Neovim version %d.%d.%d is supported",
-				nvim_version.major,
-				nvim_version.minor,
-				nvim_version.patch
-			)
+			string.format("Neovim version %d.%d.%d is supported", nvim_version.major, nvim_version.minor, nvim_version.patch)
 		)
 	else
 		health.error(
