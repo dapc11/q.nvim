@@ -12,6 +12,7 @@ local chat_state = {
 	is_open = false,
 	original_bufnr = nil,  -- Track the original buffer for % expansion
 	original_winid = nil,  -- Track the original window
+	closing = false,       -- Flag to avoid triggering our own autocommands
 }
 
 -- Forward declarations
@@ -22,6 +23,7 @@ local display_message
 local refresh_chat_display
 local send_message_authenticated
 local create_chat_window
+local setup_window_close_detection
 
 -- Add message to chat history and display
 ---@param role string "user" or "assistant"
@@ -218,6 +220,46 @@ send_message_authenticated = function(message)
 	end)
 end
 
+-- Function to set up window close detection
+setup_window_close_detection = function()
+	-- Create an autocommand group for our window close detection
+	local augroup = vim.api.nvim_create_augroup("QChatWindowClose", { clear = true })
+	
+	-- Detect when chat buffer is closed
+	if chat_state.bufnr and vim.api.nvim_buf_is_valid(chat_state.bufnr) then
+		vim.api.nvim_create_autocmd("BufWinLeave", {
+			buffer = chat_state.bufnr,
+			group = augroup,
+			callback = function()
+				-- Only close if this is the main chat buffer and not during our own close operation
+				if not chat_state.closing then
+					vim.schedule(function()
+						M.close()
+					end)
+				end
+			end,
+			desc = "Detect when Amazon Q chat window is closed with :q",
+		})
+	end
+	
+	-- Detect when input buffer is closed
+	if chat_state.input_bufnr and vim.api.nvim_buf_is_valid(chat_state.input_bufnr) then
+		vim.api.nvim_create_autocmd("BufWinLeave", {
+			buffer = chat_state.input_bufnr,
+			group = augroup,
+			callback = function()
+				-- Only close if this is the input buffer and not during our own close operation
+				if not chat_state.closing then
+					vim.schedule(function()
+						M.close()
+					end)
+				end
+			end,
+			desc = "Detect when Amazon Q chat input window is closed with :q",
+		})
+	end
+end
+
 -- Create chat window
 create_chat_window = function()
 	local ok, q_module = pcall(require, "q")
@@ -281,38 +323,11 @@ create_chat_window = function()
 
 	-- Set up keymaps for chat window
 	setup_chat_keymaps()
+	
+	-- Set up detection for when windows are closed with :q
+	setup_window_close_detection()
 
 	chat_state.is_open = true
-end
-
--- Setup keymaps for chat interaction
-setup_chat_keymaps = function()
-	local opts = { buffer = chat_state.input_bufnr, noremap = true, silent = true }
-
-	-- Send message on Enter
-	vim.keymap.set("i", "<CR>", function()
-		send_current_message()
-	end, opts)
-
-	vim.keymap.set("n", "<CR>", function()
-		send_current_message()
-	end, opts)
-
-	-- Close chat on Escape
-	vim.keymap.set("n", "<Esc>", function()
-		M.close()
-	end, opts)
-
-	-- Navigate to chat window
-	vim.keymap.set("n", "<C-w>k", function()
-		vim.api.nvim_set_current_win(chat_state.winid)
-	end, opts)
-
-	-- Clear input
-	vim.keymap.set("n", "<C-c>", function()
-		vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "Ask Amazon Q: " })
-		vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 15 })
-	end, opts)
 end
 
 -- Get the original buffer path for display
@@ -381,6 +396,9 @@ end
 
 -- Close chat window
 function M.close()
+	-- Set a flag to avoid triggering our own autocommands
+	chat_state.closing = true
+	
 	if chat_state.winid and vim.api.nvim_win_is_valid(chat_state.winid) then
 		vim.api.nvim_win_close(chat_state.winid, true)
 	end
@@ -406,6 +424,7 @@ function M.close()
 	chat_state.input_bufnr = nil
 	chat_state.original_bufnr = nil
 	chat_state.original_winid = nil
+	chat_state.closing = false  -- Reset the closing flag
 	
 	-- Note: We intentionally don't reset chat_state.history to preserve the conversation
 end
@@ -450,6 +469,36 @@ function M.clear()
 
 		add_message("assistant", "Chat history cleared. How can I help you?")
 	end
+end
+
+-- Setup keymaps for chat interaction
+setup_chat_keymaps = function()
+	local opts = { buffer = chat_state.input_bufnr, noremap = true, silent = true }
+
+	-- Send message on Enter
+	vim.keymap.set("i", "<CR>", function()
+		send_current_message()
+	end, opts)
+
+	vim.keymap.set("n", "<CR>", function()
+		send_current_message()
+	end, opts)
+
+	-- Close chat on Escape
+	vim.keymap.set("n", "<Esc>", function()
+		M.close()
+	end, opts)
+
+	-- Navigate to chat window
+	vim.keymap.set("n", "<C-w>k", function()
+		vim.api.nvim_set_current_win(chat_state.winid)
+	end, opts)
+
+	-- Clear input
+	vim.keymap.set("n", "<C-c>", function()
+		vim.api.nvim_buf_set_lines(chat_state.input_bufnr, 0, -1, false, { "Ask Amazon Q: " })
+		vim.api.nvim_win_set_cursor(chat_state.input_winid, { 1, 15 })
+	end, opts)
 end
 
 return M
