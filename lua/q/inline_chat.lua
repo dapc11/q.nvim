@@ -204,8 +204,23 @@ show_loading_indicator = function()
 	end
 
 	local lines = { "⏳ Amazon Q is thinking..." }
-	local start_line = inline_state.start_line or vim.api.nvim_win_get_cursor(inline_state.original_winid)[1]
-
+	
+	-- Get a valid line number for the extmark
+	local start_line
+	if inline_state.start_line and inline_state.start_line > 0 then
+		-- Use the start line from the selection if available
+		start_line = inline_state.start_line
+	else
+		-- Otherwise use the current cursor position
+		local cursor_pos = vim.api.nvim_win_get_cursor(inline_state.original_winid)
+		start_line = cursor_pos[1]
+	end
+	
+	-- Ensure the line is within valid range
+	local line_count = vim.api.nvim_buf_line_count(inline_state.original_bufnr)
+	start_line = math.min(start_line, line_count)
+	
+	-- Set the extmark at the valid line
 	vim.api.nvim_buf_set_extmark(inline_state.original_bufnr, inline_state.ns_id, start_line - 1, 0, {
 		virt_text = { { lines[1], "Comment" } },
 		virt_text_pos = "eol",
@@ -218,7 +233,8 @@ hide_loading_indicator = function()
 		return
 	end
 
-	vim.api.nvim_buf_clear_namespace(inline_state.original_bufnr, inline_state.ns_id, 0, -1)
+	-- Safely clear the namespace
+	pcall(vim.api.nvim_buf_clear_namespace, inline_state.original_bufnr, inline_state.ns_id, 0, -1)
 end
 
 -- Expand input window for longer prompts
@@ -270,13 +286,28 @@ process_inline_request = function()
 	-- Build the full prompt
 	local full_prompt = prompt
 
-	if inline_state.selected_text then
+	-- Debug logging
+	local ok, q_module = pcall(require, "q")
+	local config = ok and q_module.config or nil
+	local debug_enabled = config and config.debug_cli or false
+	
+	if debug_enabled then
+		vim.notify("Selected text: " .. (inline_state.selected_text or "nil"), vim.log.levels.DEBUG)
+		vim.notify("Start line: " .. (inline_state.start_line or "nil"), vim.log.levels.DEBUG)
+		vim.notify("End line: " .. (inline_state.end_line or "nil"), vim.log.levels.DEBUG)
+	end
+
+	if inline_state.selected_text and inline_state.selected_text ~= "" then
 		full_prompt = prompt
 			.. "\n\nCode:\n```"
 			.. (context.filetype or "")
 			.. "\n"
 			.. inline_state.selected_text
 			.. "\n```"
+			
+		if debug_enabled then
+			vim.notify("Using selected text in prompt", vim.log.levels.DEBUG)
+		end
 	elseif inline_state.start_line and inline_state.end_line then
 		local code_lines = vim.api.nvim_buf_get_lines(
 			inline_state.original_bufnr,
@@ -428,25 +459,32 @@ function M.start(opts, initial_prompt)
 	-- Check if text is selected
 	local mode = vim.fn.mode()
 	if mode == "v" or mode == "V" or mode == "\22" then
-		-- Get selected text
+		-- Get selected text using the improved function
 		local selected_text = utils.get_visual_selection()
-		inline_state.selected_text = selected_text
-
-		-- Get start and end lines
-		local start_pos = vim.api.nvim_buf_get_mark(0, "<")
-		local end_pos = vim.api.nvim_buf_get_mark(0, ">")
-		inline_state.start_line = start_pos[1]
-		inline_state.end_line = end_pos[1]
+		
+		if selected_text then
+			inline_state.selected_text = selected_text
+			
+			-- Get start and end lines
+			local start_pos = vim.api.nvim_buf_get_mark(0, "<")
+			local end_pos = vim.api.nvim_buf_get_mark(0, ">")
+			
+			-- Ensure start_line and end_line are valid
+			local line_count = vim.api.nvim_buf_line_count(0)
+			inline_state.start_line = math.min(start_pos[1], line_count)
+			inline_state.end_line = math.min(end_pos[1], line_count)
+		end
 
 		-- Exit visual mode
 		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "x", false)
 	elseif opts and opts.range and opts.range > 0 then
 		-- Get start and end lines from command range
-		inline_state.start_line = opts.line1
-		inline_state.end_line = opts.line2
+		local line_count = vim.api.nvim_buf_line_count(0)
+		inline_state.start_line = math.min(opts.line1, line_count)
+		inline_state.end_line = math.min(opts.line2, line_count)
 
 		-- Get text from range
-		local lines = vim.api.nvim_buf_get_lines(0, opts.line1 - 1, opts.line2, false)
+		local lines = vim.api.nvim_buf_get_lines(0, inline_state.start_line - 1, inline_state.end_line, false)
 		inline_state.selected_text = table.concat(lines, "\n")
 	end
 

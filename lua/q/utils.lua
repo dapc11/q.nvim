@@ -144,29 +144,24 @@ end
 -- Get selected text in visual mode
 ---@return string|nil selected_text
 function M.get_visual_selection()
-	local start_pos = vim.fn.getpos("'<")
-	local end_pos = vim.fn.getpos("'>")
-
-	if start_pos[2] == 0 or end_pos[2] == 0 then
-		return nil
-	end
-
-	local lines = vim.api.nvim_buf_get_lines(0, start_pos[2] - 1, end_pos[2], false)
-
-	if #lines == 0 then
-		return nil
-	end
-
-	-- Handle single line selection
-	if #lines == 1 then
-		return string.sub(lines[1], start_pos[3], end_pos[3])
-	end
-
-	-- Handle multi-line selection
-	lines[1] = string.sub(lines[1], start_pos[3])
-	lines[#lines] = string.sub(lines[#lines], 1, end_pos[3])
-
-	return table.concat(lines, "\n")
+    -- Save the current register content
+    local reg_save = vim.fn.getreg('v')
+    local regtype_save = vim.fn.getregtype('v')
+    
+    -- Yank the visual selection into register 'v'
+    vim.cmd('normal! gv"vy')
+    
+    -- Get the text from register 'v'
+    local selected_text = vim.fn.getreg('v')
+    
+    -- Restore the register
+    vim.fn.setreg('v', reg_save, regtype_save)
+    
+    if selected_text == "" then
+        return nil
+    end
+    
+    return selected_text
 end
 
 -- Create a floating window
